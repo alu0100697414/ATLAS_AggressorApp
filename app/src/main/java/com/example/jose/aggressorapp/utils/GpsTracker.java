@@ -114,7 +114,6 @@ public class GpsTracker extends Service implements LocationListener {
             }
 
         } catch (Exception e) {
-            Log.d("caca", "UPPPS");
             e.printStackTrace();
         }
 

@@ -120,7 +120,7 @@ public class MainActivity extends AppCompatActivity {
 
         String url_server = "http://4tl4s.duckdns.org:8000";
 
-        Request.pingAggressorDevice(data, url_server);
+        Request.pingAggressorDevice(data, url_server, this, getApplicationContext());
     }
 
     @Override
