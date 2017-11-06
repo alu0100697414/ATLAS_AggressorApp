@@ -11,6 +11,7 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.android.volley.toolbox.Volley;
@@ -62,39 +63,42 @@ public class MainActivity extends AppCompatActivity {
             bt_dialog.setPositiveButton("Activar", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                    Intent toGPSEnable = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                    startActivity(toGPSEnable);
+                    Intent SettingIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                    //SettingIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivityForResult(SettingIntent, 123);
                 }
             });
             bt_dialog.setNegativeButton("Cancelar", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                    // If aggressor doesn't activate GPS
+                    TextView distance = (TextView) findViewById(R.id.distance_number);
+                    distance.setText("GPS desactivado");
                 }
             });
             bt_dialog.show();
+        } else {
+            Runnable pingService = new Runnable() {
+                public void run() {
+                    try {
+                        sendPingToServer();
+                    }
+                    catch (ClassNotFoundException e) {
+                        e.printStackTrace();
+                    } catch (NoSuchAlgorithmException e) {
+                        e.printStackTrace();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (NoSuchProviderException e) {
+                        e.printStackTrace();
+                    } catch (InvalidKeyException e) {
+                        e.printStackTrace();
+                    }
+                }
+            };
+
+            executor.scheduleAtFixedRate(pingService, 0, 15, TimeUnit.SECONDS);
         }
-
-        Runnable pingService = new Runnable() {
-            public void run() {
-                try {
-                    sendPingToServer();
-                }
-                catch (ClassNotFoundException e) {
-                    e.printStackTrace();
-                } catch (NoSuchAlgorithmException e) {
-                    e.printStackTrace();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } catch (NoSuchProviderException e) {
-                    e.printStackTrace();
-                } catch (InvalidKeyException e) {
-                    e.printStackTrace();
-                }
-            }
-        };
-
-        executor.scheduleAtFixedRate(pingService, 0, 15, TimeUnit.SECONDS);
+        
     }
 
     public void sendPingToServer() throws ClassNotFoundException,
@@ -104,6 +108,7 @@ public class MainActivity extends AppCompatActivity {
         Map<String, String> data = new HashMap<String, String>();
         data.put("victim_mac", "78:4B:87:76:4C:82");
 
+        gpsTrack = null;
         gpsTrack = new GpsTracker(this);
 
         if (gpsTrack != null && gpsTrack.canGetLocation()){
@@ -150,6 +155,42 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == 123) { // GPS result
+            gpsTrack = new GpsTracker(this);
+            // Shows dialog to activate GPS if it is not activated
+            if(!gpsTrack.canGetLocation()) {
+                AlertDialog.Builder bt_dialog = new AlertDialog.Builder(this);
+                bt_dialog.setTitle("Activar GPS");
+                bt_dialog.setMessage("Por favor, active el servicio GPS.");
+                bt_dialog.setCancelable(false);
+                bt_dialog.setPositiveButton("Activar", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        Intent SettingIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                        //SettingIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivityForResult(SettingIntent, 123);
+                    }
+                });
+                bt_dialog.setNegativeButton("Cancelar", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        TextView distance = (TextView) findViewById(R.id.distance_number);
+                        distance.setText("GPS desactivado");
+                    }
+                });
+                bt_dialog.show();
+            } else {
+                System.exit(0);
+                this.startActivity(new Intent(this.getApplicationContext(), MainActivity.class));
+            }
+        }
+
+    }
+
 
     @Override
     public void onDestroy() {
