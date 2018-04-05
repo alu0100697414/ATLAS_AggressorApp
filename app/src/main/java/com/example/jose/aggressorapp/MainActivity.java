@@ -33,18 +33,21 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String LOG = "MainActivity";
     private static final int ACCESS_FINE_LOCATION_CALLBACK = 0;
+    private static final int RESULT_CODE_GPS = 123;
 
     private ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);;
     private GpsTracker gpsTrack;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Init Volley
         Request.requestQueue = Volley.newRequestQueue(this);
 
-        // Request permission.
+        // Request GPS permission
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -54,48 +57,49 @@ public class MainActivity extends AppCompatActivity {
                     ACCESS_FINE_LOCATION_CALLBACK);
         }
 
+        // HTTPS support
         new Network().handleSSLHandshake();
 
+        // Init GpsTracker object
         gpsTrack = new GpsTracker(this);
+
         // Shows dialog to activate GPS if it is not activated
         if(!gpsTrack.canGetLocation()) {
-            AlertDialog.Builder bt_dialog = new AlertDialog.Builder(this);
-            bt_dialog.setTitle("Activar GPS");
-            bt_dialog.setMessage("Por favor, active el servicio GPS.");
-            bt_dialog.setCancelable(false);
-            bt_dialog.setPositiveButton("Activar", new DialogInterface.OnClickListener() {
+
+            AlertDialog.Builder gps_dialog = new AlertDialog.Builder(this);
+
+            gps_dialog.setTitle("Activar GPS");
+            gps_dialog.setMessage("Por favor, active el servicio GPS.");
+            gps_dialog.setCancelable(false);
+
+            gps_dialog.setPositiveButton("ACTIVAR", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                    Intent SettingIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                    //SettingIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivityForResult(SettingIntent, 123);
+                    Intent settingIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                    startActivityForResult(settingIntent, RESULT_CODE_GPS);
                 }
             });
-            bt_dialog.setNegativeButton("Cancelar", new DialogInterface.OnClickListener() {
+
+            gps_dialog.setNegativeButton("CANCELAR", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
                     TextView distance = (TextView) findViewById(R.id.distance_number);
                     distance.setText("GPS desactivado");
                 }
             });
-            bt_dialog.show();
-        } else {
+
+            gps_dialog.show();
+
+        } else { // Start sending ping to server
+
             Runnable pingService = new Runnable() {
                 public void run() {
-                    try {
-                        sendPingToServer();
-                    }
-                    catch (ClassNotFoundException e) {
-                        e.printStackTrace();
-                    } catch (NoSuchAlgorithmException e) {
-                        e.printStackTrace();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    } catch (NoSuchProviderException e) {
-                        e.printStackTrace();
-                    } catch (InvalidKeyException e) {
-                        e.printStackTrace();
-                    }
+                    try { sendPingToServer(); }
+                    catch (ClassNotFoundException e) { e.printStackTrace(); }
+                    catch (NoSuchAlgorithmException e) { e.printStackTrace(); }
+                    catch (IOException e) { e.printStackTrace(); }
+                    catch (NoSuchProviderException e) { e.printStackTrace(); }
+                    catch (InvalidKeyException e) { e.printStackTrace(); }
                 }
             };
 
@@ -104,6 +108,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    // Method to send ping to server
     public void sendPingToServer() throws ClassNotFoundException,
             InvalidKeyException, NoSuchAlgorithmException,
             NoSuchProviderException, IOException {
@@ -114,7 +119,8 @@ public class MainActivity extends AppCompatActivity {
         gpsTrack = null;
         gpsTrack = new GpsTracker(this);
 
-        if (gpsTrack != null && gpsTrack.canGetLocation()){
+        if (gpsTrack != null && gpsTrack.canGetLocation() && gpsTrack.getLocation() != null){
+            Log.d(LOG, String.valueOf(gpsTrack.canGetLocation()));
             data.put("latitude_aggressor", String.valueOf(gpsTrack.getLocation().getLatitude()));
             data.put("longitude_aggressor", String.valueOf(gpsTrack.getLocation().getLongitude()));
         } else {
@@ -132,6 +138,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    // Permission callback
     public void onRequestPermissionsResult(int requestCode,
                                            String permissions[], int[] grantResults) {
         switch (requestCode) {
@@ -139,15 +146,14 @@ public class MainActivity extends AppCompatActivity {
                 if (grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
+                    Intent intent = getIntent();
+                    finish();
+                    startActivity(intent);
+
                     Toast.makeText(this,
                             "Permiso activado correctamente.",
                             Toast.LENGTH_SHORT).
                             show();
-                    gpsTrack = new GpsTracker(this);
-
-                    if (gpsTrack.canGetLocation()) {
-
-                    }
                 } else {
                     Toast.makeText(this,
                             "No se ha activado el permiso.",
@@ -162,8 +168,11 @@ public class MainActivity extends AppCompatActivity {
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
-        if (requestCode == 123) { // GPS result
+        // GPS activation result
+        if (requestCode == RESULT_CODE_GPS) {
+
             gpsTrack = new GpsTracker(this);
+
             // Shows dialog to activate GPS if it is not activated
             if(!gpsTrack.canGetLocation()) {
                 AlertDialog.Builder bt_dialog = new AlertDialog.Builder(this);
@@ -187,8 +196,9 @@ public class MainActivity extends AppCompatActivity {
                 });
                 bt_dialog.show();
             } else {
-                System.exit(0);
-                this.startActivity(new Intent(this.getApplicationContext(), MainActivity.class));
+                Intent intent = getIntent();
+                finish();
+                startActivity(intent);
             }
         }
 
