@@ -16,6 +16,7 @@ import android.widget.Toast;
 
 import com.android.volley.toolbox.Volley;
 import com.example.jose.aggressorapp.utils.GpsTracker;
+import com.example.jose.aggressorapp.utils.Network;
 import com.example.jose.aggressorapp.utils.Request;
 
 import java.io.IOException;
@@ -52,6 +53,8 @@ public class MainActivity extends AppCompatActivity {
                     new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
                     ACCESS_FINE_LOCATION_CALLBACK);
         }
+
+        new Network().handleSSLHandshake();
 
         gpsTrack = new GpsTracker(this);
         // Shows dialog to activate GPS if it is not activated
@@ -98,7 +101,7 @@ public class MainActivity extends AppCompatActivity {
 
             executor.scheduleAtFixedRate(pingService, 0, 15, TimeUnit.SECONDS);
         }
-        
+
     }
 
     public void sendPingToServer() throws ClassNotFoundException,
@@ -123,7 +126,7 @@ public class MainActivity extends AppCompatActivity {
                     show();
         }
 
-        String url_server = "http://4tl4s.duckdns.org:8000";
+        String url_server = "https://4tl4s.duckdns.org:443";
 
         Request.pingAggressorDevice(data, url_server, this, getApplicationContext());
     }
