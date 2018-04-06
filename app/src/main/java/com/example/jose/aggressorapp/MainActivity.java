@@ -1,9 +1,12 @@
 package com.example.jose.aggressorapp;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.os.BatteryManager;
 import android.provider.Settings;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -11,6 +14,11 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -32,17 +40,28 @@ import java.util.concurrent.TimeUnit;
 public class MainActivity extends AppCompatActivity {
 
     private static final String LOG = "MainActivity";
+
     private static final int ACCESS_FINE_LOCATION_CALLBACK = 0;
     private static final int RESULT_CODE_GPS = 123;
 
+    private SharedPreferences prefs;
+    private SharedPreferences.Editor editor;
+
     private ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);;
     private GpsTracker gpsTrack;
+
+    private static final String VICTIM_MAC = "78:4B:87:76:4C:82";
+    private static final String SERVER_URL = "https://4tl4s.duckdns.org:443";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // Shared preferences
+        prefs = getSharedPreferences("MisPreferencias", Context.MODE_PRIVATE);
+        editor = prefs.edit();
 
         // Init Volley
         Request.requestQueue = Volley.newRequestQueue(this);
@@ -108,14 +127,124 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.main_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+
+        int id = item.getItemId();
+
+        // Diálogo para introducir la info del agresor
+        if(id == R.id.action_user){
+
+            LayoutInflater factory = LayoutInflater.from(this);
+            final View textEntryView = factory.inflate(R.layout.user_dialog, null);
+
+            final EditText input1 = (EditText) textEntryView.findViewById(R.id.contact_name);
+            final EditText input2 = (EditText) textEntryView.findViewById(R.id.contact_phone);
+
+            input1.setText(prefs.getString("name", ""));
+            input2.setText(prefs.getString("number", ""));
+
+            final AlertDialog.Builder alert = new AlertDialog.Builder(this);
+            alert.setTitle("Información de contacto")
+                    .setView(textEntryView)
+                    .setPositiveButton("ACTUALIZAR",
+                            new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int whichButton) {
+
+                                    editor.putString("name", input1.getText().toString());
+                                    editor.putString("number", input2.getText().toString());
+                                    editor.commit();
+
+                                    Toast.makeText(getApplicationContext(),
+                                            "Datos de contacto actualizados",
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            })
+                    .setNegativeButton("CANCELAR",
+                            new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int whichButton) {
+                                    Toast.makeText(getApplicationContext(),
+                                            "Operación cancelada",
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                    );
+            alert.show();
+        }
+
+        // Diálogo para introducir la info del servidor
+        if(id == R.id.action_server){
+
+            LayoutInflater factory = LayoutInflater.from(this);
+            final View textEntryView = factory.inflate(R.layout.server_dialog, null);
+
+            final EditText input1 = (EditText) textEntryView.findViewById(R.id.url_server);
+            final EditText input2 = (EditText) textEntryView.findViewById(R.id.mac_victim);
+
+            input1.setText(prefs.getString("url_server", SERVER_URL));
+            input2.setText(prefs.getString("mac_victim", VICTIM_MAC));
+
+            final AlertDialog.Builder alert = new AlertDialog.Builder(this);
+            alert.setTitle("Acceso al servidor")
+                    .setView(textEntryView)
+                    .setPositiveButton("ACTUALIZAR",
+                            new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int whichButton) {
+
+                                    editor.putString("url_server", input1.getText().toString());
+                                    editor.putString("mac_victim", input2.getText().toString());
+                                    editor.commit();
+
+                                    Toast.makeText(getApplicationContext(),
+                                            "Datos del servidor actualizados",
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            })
+                    .setNegativeButton("CANCELAR",
+                            new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int whichButton) {
+                                    Toast.makeText(getApplicationContext(),
+                                            "Operación cancelada",
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                    );
+            alert.show();
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
+
     // Method to send ping to server
     public void sendPingToServer() throws ClassNotFoundException,
             InvalidKeyException, NoSuchAlgorithmException,
             NoSuchProviderException, IOException {
 
+        // Victim mac
         Map<String, String> data = new HashMap<String, String>();
-        data.put("victim_mac", "78:4B:87:76:4C:82");
+        data.put("victim_mac", prefs.getString("mac_victim", VICTIM_MAC));
 
+        // Aggressor info
+        data.put("aggressor_name", prefs.getString("name", ""));
+        data.put("aggressor_number", prefs.getString("number", ""));
+
+        // Battery info
+        BatteryManager bm = (BatteryManager)getSystemService(BATTERY_SERVICE);
+        int batLevel = 0;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            batLevel = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+        }
+
+        data.put("aggressor_battery", String.valueOf(batLevel));
+
+        // GPS position
         gpsTrack = null;
         gpsTrack = new GpsTracker(this);
 
@@ -132,7 +261,8 @@ public class MainActivity extends AppCompatActivity {
                     show();
         }
 
-        String url_server = "https://4tl4s.duckdns.org:443";
+        // Server url
+        String url_server = prefs.getString("url_server", SERVER_URL);
 
         Request.pingAggressorDevice(data, url_server, this, getApplicationContext());
     }

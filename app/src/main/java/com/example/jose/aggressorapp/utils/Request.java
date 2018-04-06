@@ -38,6 +38,9 @@ public class Request {
         HashMap<String, String> params = new HashMap<String, String>();
         params.put("latitude_aggressor", info.get("latitude_aggressor"));
         params.put("longitude_aggressor", info.get("longitude_aggressor"));
+        params.put("aggressor_name", info.get("aggressor_name"));
+        params.put("aggressor_number", info.get("aggressor_number"));
+        params.put("aggressor_battery", info.get("aggressor_battery"));
 
         Log.i("test", server + "/updateaggressorposition/" + info.get("victim_mac"));
 
